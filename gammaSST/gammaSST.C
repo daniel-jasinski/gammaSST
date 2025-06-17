@@ -64,7 +64,7 @@ tmp<volScalarField> gammaSST<BasicTurbulenceModel>::Fonset(const volScalarField&
     {
         Fons = max(Fons, this->FonsetCF());
     }
-    
+
     return tmp<volScalarField>
 	(
 	    new volScalarField
@@ -99,10 +99,10 @@ tmp<volScalarField> gammaSST<BasicTurbulenceModel>::FonsetCF() const
     tmp<volScalarField> Psi(mag(n() & fvc::grad(ew))*this->y_);
 
     tmp<volScalarField> lambda (
-        min( 0.0477, max( 0.0, 
+        min( 0.0477, max( 0.0,
         -7.57e-3 * ( fvc::grad(this->U_ & n()) & n()) * sqr(this->y_) / this->nu() + 0.0174))
     );
-    
+
     tmp<volScalarField> gLambda (
         min(2.3, max( 1.0, ((27864.0*lambda()-1962.0)*lambda()+54.3)*lambda() + 1.0))
     );
@@ -149,20 +149,22 @@ tmp<volScalarField> gammaSST<BasicTurbulenceModel>::TuL() const
 template<class BasicTurbulenceModel>
 tmp<volScalarField> gammaSST<BasicTurbulenceModel>::FPG() const
 {
-    volVectorField n = fvc::grad(this->y_);
-    volScalarField lambdaThetaL = 
-        min( 1.0, max( -1.0, 
-        -7.57e-3 * ( fvc::grad(this->U_ & n) & n) * sqr(this->y_) / this->nu() + 0.0128));
+    volVectorField n(fvc::grad(this->y_));
+    volScalarField lambdaThetaL
+    (
+        min( 1.0, max( -1.0,
+        -7.57e-3 * ( fvc::grad(this->U_ & n) & n) * sqr(this->y_) / this->nu() + 0.0128))
+    );
 
     tmp<volScalarField> tFPG(new volScalarField("FPG", lambdaThetaL));
- 
+
     volScalarField& FPG_ = tFPG.ref();
     forAll(FPG_, i) {
-        if (lambdaThetaL[i]>=0) 
+        if (lambdaThetaL[i]>=0)
             FPG_[i] = min(1 + CPG1_.value()*lambdaThetaL[i], CPG1lim_.value());
         else
-            FPG_[i] = min(1 + CPG2_.value()*lambdaThetaL[i] + 
-            CPG3_.value()*min(lambdaThetaL[i]+0.0681,0), 
+            FPG_[i] = min(1 + CPG2_.value()*lambdaThetaL[i] +
+            CPG3_.value()*min(lambdaThetaL[i]+0.0681,0),
             CPG2lim_.value());
         FPG_[i] = max(FPG_[i], 0.0);
     }
@@ -173,7 +175,7 @@ tmp<volScalarField> gammaSST<BasicTurbulenceModel>::FPG() const
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 template<class BasicTurbulenceModel>
 gammaSST<BasicTurbulenceModel>::gammaSST
-        (            
+        (
             const alphaField& alpha,
             const rhoField& rho,
             const volVectorField& U,
@@ -183,7 +185,7 @@ gammaSST<BasicTurbulenceModel>::gammaSST
             const word& propertiesName,
             const word& type
         ):
-            
+
             kOmegaSST<BasicTurbulenceModel>
             (
                 alpha,
@@ -362,7 +364,7 @@ gammaSST<BasicTurbulenceModel>::gammaSST
         ),
 	this->mesh_
     )
-{    
+{
     if (type == typeName)
     {
         this->correctNut();
@@ -441,7 +443,7 @@ void gammaSST<BasicTurbulenceModel>::correct()
         ( "CD",
         (2*this->alphaOmega2_)*(fvc::grad(k_) & fvc::grad(omega_))/omega_
         );
-    
+
     const volScalarField F1("F1", this->F1(CDkOmega));
 
     {
@@ -483,7 +485,7 @@ void gammaSST<BasicTurbulenceModel>::correct()
     );
     const volScalarField PkLim(
         "PkLim",
-        5*Ck_ * max(gammaInt()-0.2,0.) * (1-gammaInt()) * FonLim * 
+        5*Ck_ * max(gammaInt()-0.2,0.) * (1-gammaInt()) * FonLim *
         max(3*CSEP_*this->nu() - this->nut_, 0.*this->nut_) * S * W
     );
 
@@ -513,8 +515,8 @@ void gammaSST<BasicTurbulenceModel>::correct()
 #endif
 
    // Intermittency equation (2)
-    volScalarField Pgamma1 = Flength_ * S * gammaInt_ * Fonset(S);
-    volScalarField Pgamma2 = ca2_ * W * gammaInt_ * Fturb();
+    volScalarField Pgamma1(Flength_ * S * gammaInt_ * Fonset(S));
+    volScalarField Pgamma2(ca2_ * W * gammaInt_ * Fturb());
     tmp<fvScalarMatrix> gammaEqn
         (
             fvm::ddt(alpha, rho, gammaInt_)
@@ -523,8 +525,8 @@ void gammaSST<BasicTurbulenceModel>::correct()
             ==
             alpha*rho*Pgamma1 - fvm::Sp(alpha*rho*Pgamma1, gammaInt_) +
             alpha*rho*Pgamma2 - fvm::Sp(alpha*rho*ce2_*Pgamma2, gammaInt_)
-        ); 
-    
+        );
+
     gammaEqn.ref().relax();
     solve(gammaEqn);
 
